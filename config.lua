@@ -90,6 +90,3 @@ Config.CarryBox = {
     },
 }
 
-Config.Doors.Big.screenHeading   = 0.0
-Config.Doors.Small.screenHeading = 180.0
-
