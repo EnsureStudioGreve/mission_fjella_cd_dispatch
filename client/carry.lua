@@ -1,7 +1,8 @@
 
--- we only handle THE box (hei_prop_heist_box). walk-only while carrying.
+-- we only handle the box hei_prop_heist_box. 
+-- walk-only while carrying.
 
--- cfg-ish stuff 
+-- CFG 
 local BOX_MODEL = `hei_prop_heist_box`
 local BOX_BONE  = 60309 -- right hand-ish
 local BOX_PLACE = {
