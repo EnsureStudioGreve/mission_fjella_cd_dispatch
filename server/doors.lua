@@ -1,3 +1,5 @@
+local ox_lib = exports.ox_lib
+
 -- C4 big door
 RegisterNetEvent("fjella_mission:server:tryUseC4", function()
     local src = source
@@ -36,7 +38,12 @@ RegisterNetEvent("fjella_mission:server:explosionComplete", function()
     StartPhaseTwo()
 end)
 
--- thermite (small door)
+RegisterNetEvent('fjella_mission:bigDoorExploded', function()
+    local src = source
+    ox_lib:logger('info', 'Big door explosion triggered', {player = src, coords = Config.Doors.Big.explosion})
+end)
+
+-- Thermite (small door)
 RegisterNetEvent("fjella_mission:server:tryUseThermite", function()
     local src = source
     local have = (exports.ox_inventory:Search(src, 'count', 'thermite') or 0)
@@ -62,6 +69,11 @@ RegisterNetEvent("fjella_mission:server:thermiteComplete", function()
             StartPhaseTwo()
         end
     end)
+end)
+
+RegisterNetEvent('fjella_mission:smallDoorBurned', function()
+    local src = source
+    ox_lib:logger('info', 'Small door burn triggered', {player = src, coords = Config.Doors.Small.burnFx})
 end)
 
 -- on boot: pls lock the doors thx

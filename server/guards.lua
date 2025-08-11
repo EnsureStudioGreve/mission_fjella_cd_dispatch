@@ -64,3 +64,19 @@ function CleanupPhaseTwo()
 
     print('guards - phase 2 cleaned up')
 end
+
+local ox_lib = exports.ox_lib
+
+exports('StartPhaseTwo', function()
+    ox_lib:logger('info', 'Phase Two started - Guards spawning', {guardCount = #Config.Guards})
+    StartPhaseTwo()
+end)
+
+exports('CleanupPhaseTwo', function()
+    ox_lib:logger('info', 'Phase Two cleanup initiated', {despawnedGuards = #SpawnedGuards})
+    CleanupPhaseTwo()
+end)
+
+local function spawnGuard(guardData, index)
+    ox_lib:logger('debug', 'Spawning guard', {index = index, model = guardData.model, weapon = guardData.weapon})
+end

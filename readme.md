@@ -59,3 +59,10 @@ I delayed implementing it for two reasons:
 2. Skill readiness – I want more hands-on practice with DUI rendering before using it in a formal test submission, to ensure it’s done properly.
 
 For now, the breach phases rely on ox_lib progress bars, which are lightweight and resmon-friendly.  
+
+New note: 11.08.2025
+I got a tip from Mietek too look at textures, and i have found a solid solution to do DUI.
+So right now im playing around with this prop: "v_club_roc_mscreen", exported it with OpenIV to get the texture file, and im now playing around with placing my DUI on that screen.
+Right now im trying out a project where i will redo qbx_management, to be on the business managers actual PC screen.
+I am still having some major client side resmon issues, but i am pretty sure that is because my threads are not optimized yet + its loading from way too far away.
+Need to opimitize both threads and who it loads for, and at what distance.

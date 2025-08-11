@@ -1,8 +1,6 @@
+-- we only handle the box hei_prop_heist_box walk-only while carrying.
 
--- we only handle the box hei_prop_heist_box. 
--- walk-only while carrying.
-
--- CFG 
+-- CFG
 local BOX_MODEL = `hei_prop_heist_box`
 local BOX_BONE  = 60309 -- right hand-ish
 local BOX_PLACE = {
@@ -167,3 +165,15 @@ AddEventHandler('ox_inventory:itemCount', function(itemName, totalCount)
     print(('carry - inv says box=%s'):format(tostring(has)))
     TriggerServerEvent('carry:update', has)
 end)
+
+local ox_lib = exports.ox_lib
+
+function StartCarrying()
+    ox_lib:logger('debug', 'Player started carrying crate')
+    startCarrying()
+end
+
+function StopCarrying()
+    ox_lib:logger('debug', 'Player stopped carrying crate')
+    stopCarrying()
+end

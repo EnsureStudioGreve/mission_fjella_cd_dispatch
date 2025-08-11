@@ -5,6 +5,7 @@
 -- try to keep this boring & reliable pls :>
 
 local ox = exports.ox_inventory
+local ox_lib = exports.ox_lib
 
 -- do they actually have a 'box' item? (fast path then fallback scan, cuz ox versions be diff)
 local function hasBox(src)
@@ -72,7 +73,7 @@ RegisterNetEvent('fjella_mission:server:tryPhase2Search', function(playerPos)
     buyerStart(src)
 end)
 
--- optional reward on the main crate (client can call this during phaseTwo)
+-- Optional reward on the main crate (client can call this during phaseTwo)
 RegisterNetEvent('fjella_mission:server:rewardItem', function()
     local src = source
     ox:AddItem(src, 'box', 1)
@@ -123,4 +124,14 @@ AddEventHandler('playerDropped', function()
     local src = source
     setCarryState(src, false)
     buyerCancel(src)
+end)
+
+RegisterNetEvent('fjella_mission:pickupCrate', function()
+    local src = source
+    ox_lib:logger('info', 'Player picked up crate', {player = src, coords = Config.Crate.coords})
+end)
+
+RegisterNetEvent('fjella_mission:deliverCrate', function()
+    local src = source
+    ox_lib:logger('info', 'Player delivered crate', {player = src, coords = Config.Buyer.coords})
 end)

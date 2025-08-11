@@ -1,6 +1,7 @@
 -- spins up the run, picks points (with fallback), pokes cops, pings snitch now with payment and handles cooldown stuff, note to self, pls keep it neat .
 
 QBCore = exports['qb-core']:GetCoreObject()
+local ox_lib = exports.ox_lib
 
 -- shared state
 SnitchSubscribers = SnitchSubscribers or {}
@@ -128,4 +129,19 @@ RegisterNetEvent('fjella_mission:server:complete', function()
         TriggerClientEvent('ox_lib:notify', src, { description = "Mission complete! Cash received.", type = "success" })
     end
     if CleanupPhaseTwo then CleanupPhaseTwo() end
+end)
+
+RegisterNetEvent('fjella_mission:startMission', function()
+    local src = source
+    ox_lib:logger('info', 'Mission started', {player = src, name = GetPlayerName(src)})
+end)
+
+RegisterNetEvent('fjella_mission:abortMission', function()
+    local src = source
+    ox_lib:logger('warn', 'Mission aborted', {player = src, name = GetPlayerName(src)})
+end)
+
+RegisterNetEvent('fjella_mission:completeMission', function()
+    local src = source
+    ox_lib:logger('info', 'Mission completed', {player = src, name = GetPlayerName(src)})
 end)

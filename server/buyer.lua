@@ -1,7 +1,9 @@
+-- buyer.lua (server) — PATCH
+
 local ox = exports.ox_inventory
 local BUYER_POS = vec4(1507.93, 6336.9, 23.87, 57.24)
 local DURATION  = 5 * 60 * 1000  -- 5 minutes
-local Sessions = {}  --  [src] = { active = true , started = GetGameTimer()  }
+local Sessions = {}  -- [src] = { active = true, started = GetGameTimer()}
 
 local function hasBox(src)
     local count = ox:GetItemCount(src, 'box')

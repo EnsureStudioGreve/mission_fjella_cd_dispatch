@@ -1,10 +1,11 @@
 -- spawns the npcs, handles snitch spam, mission start, misc fx.
 
-
 QBCore         = exports['qb-core']:GetCoreObject()
 missionActive  = false
 currentPhase   = 0
 selectedPoints = {}
+
+local ox_lib = exports.ox_lib
 
 --  helper so i dont softlock on missing cfg and cry later
 local function need(tbl, key, who)
@@ -124,3 +125,15 @@ RegisterNetEvent("fjella_mission:client:playThermiteEffect", function(pos)
     Wait(10000)
     StopParticleFxLooped(fx, 0)
 end)
+
+local function startMission()
+    ox_lib:logger('info', 'Starting mission sequence')
+end
+
+local function abortMission()
+    ox_lib:logger('warn', 'Mission aborted by player')
+end
+
+local function completeMission()
+    ox_lib:logger('info', 'Mission completed successfully')
+end
