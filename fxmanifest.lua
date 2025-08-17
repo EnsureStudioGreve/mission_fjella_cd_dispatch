@@ -6,14 +6,20 @@ description 'Chicken Heist Mission'
 version '1.0.0'
 
 shared_scripts { 
-    '@ox_lib/init.lua',
-    'config.lua'
+    '@ox_lib/init.lua', 
+    'config.lua', 
+    'utils.lua' 
 }
 
-
-client_scripts {'client/*.lua'}
-
-server_scripts {'server/*.lua'}
+client_scripts { 
+'bootstrap.lua', 
+'client.lua' 
+}
+server_scripts { 
+    '@oxmysql/lib/MySQL.lua', 
+    'bootstrap.lua', 
+    'server.lua' 
+}
 
 
 
