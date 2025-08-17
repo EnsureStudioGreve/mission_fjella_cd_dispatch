@@ -345,72 +345,134 @@ end)
 -- Guards (server spawns; owner client configures AI)
 local function despawnGuards()
   local total = #guardNets
-  print(("starting guard cleanup i see %d guards to remove"):format(total))
+  print(("starting guard cleanup, i see %d guards queued to yeet"):format(total))
 
   local removed = 0
   for _, netId in ipairs(guardNets) do
     local ent = NetworkGetEntityFromNetworkId(netId)
     if ent and DoesEntityExist(ent) then
+      local owner = NetworkGetEntityOwner(ent)
+      local ownerName = owner and owner ~= 0 and (GetPlayerName(owner) or ("id " .. tostring(owner))) or "no owner"
+      print(("nuking guard %s (owner %s)"):format(tostring(netId), ownerName))
+
       DeleteEntity(ent)
-      removed = removed + 1
-      print(("removed guard with net id %s"):format(tostring(netId)))
+
+      if not DoesEntityExist(ent) then
+        removed = removed + 1
+        print(("guard %s is gone, nice"):format(tostring(netId)))
+      else
+        print(("huh guard %s still exists after delete, leaving it for next pass"):format(tostring(netId)))
+      end
     else
-      print(("skipping net id %s because the entity is already gone"):format(tostring(netId)))
+      print(("skipping %s, entity already missing or invalid"):format(tostring(netId)))
     end
   end
 
   guardNets = {}
   guardOwner = {}
-  print(("guard cleanup done removed %d out of %d"):format(removed, total))
+  print(("guard cleanup done, removed %d out of %d"):format(removed, total))
 end
 
-local function spawnGuard(g)
-  print(("trying to spawn a guard model %s at %.2f %.2f %.2f with heading %.2f"):format(
-    tostring(g.model), g.pos.x, g.pos.y, g.pos.z, g.pos.w or 0.0))
 
-  local ped = CreatePed(4, g.model, g.pos.x, g.pos.y, g.pos.z - 1.0, g.pos.w or 0.0, true, true)
+local function spawnGuard(g)
+  local pos = g.pos
+  local heading = pos.w or 0.0
+  print(("ok lets try to spawn a guard %s at %.2f %.2f %.2f h=%.1f"):format(tostring(g.model), pos.x, pos.y, pos.z, heading))
+
+  -- spawn as networked so ownership can move around cleanly
+  local ped = CreatePed(4, g.model, pos.x, pos.y, pos.z - 1.0, heading, true, true)
   if not ped or ped == 0 or not DoesEntityExist(ped) then
-    print("guard spawn failed the ped did not materialize")
+    print("nah that spawn flopped the ped never showed up")
     return nil
   end
 
+  -- give them something spicy
   local weapon = g.weapon or `WEAPON_SMG`
   GiveWeaponToPed(ped, weapon, 250, false, true)
-  print(("armed the new guard with %s and a bit of ammo"):format(tostring(weapon)))
+  print(("armed new guard with %s and a pocket full of bullets"):format(tostring(weapon)))
 
+  -- network hygiene
   local netId = NetworkGetNetworkIdFromEntity(ped)
-  print(("spawned guard successfully net id is %s"):format(tostring(netId)))
+  if SetNetworkIdExistsOnAllMachines then SetNetworkIdExistsOnAllMachines(netId, true) end
+  if SetNetworkIdCanMigrate then SetNetworkIdCanMigrate(netId, true) end
+
+  -- who owns it right now (purely for logs)
+  local owner = NetworkGetEntityOwner(ped)
+  local ownerName = owner and owner ~= 0 and (GetPlayerName(owner) or ("id " .. tostring(owner))) or "nobody yet"
+  print(("guard is up netId=%s currentOwner=%s"):format(tostring(netId), ownerName))
+
   return netId
 end
 
+
 local function pushGuardSetupToOwner(netId, ai, weapon, exemptIds)
-  print(("preparing to hand guard %s to its owner"):format(tostring(netId)))
+  local netStr = tostring(netId)
+  print(("ok, prepping guard %s handoff"):format(netStr))
 
   local ent = NetworkGetEntityFromNetworkId(netId)
   if not ent or not DoesEntityExist(ent) then
-    print(("cannot hand off guard %s because the entity is missing"):format(tostring(netId)))
+    print(("guard %s has no entity yet, chillin, will try later"):format(netStr))
     return
+  end
+  if not IsEntityAPed(ent) then
+    print(("guard %s points at a non-ped entity somehow, skipping"):format(netStr))
+    return
+  end
+
+  -- make sure this net id is nice and loud on all clients
+  if SetNetworkIdExistsOnAllMachines then
+    SetNetworkIdExistsOnAllMachines(netId, true)
+  end
+  if SetNetworkIdCanMigrate then
+    SetNetworkIdCanMigrate(netId, true) -- we still want ownership to be able to move
   end
 
   local owner = NetworkGetEntityOwner(ent)
   if owner and owner ~= 0 then
     guardOwner[netId] = owner
     local ownerName = GetPlayerName(owner) or ("id " .. tostring(owner))
-    print(("setting owner of guard %s to %s"):format(tostring(netId), ownerName))
+    print(("handing guard %s to %s, they own it now"):format(netStr, ownerName))
 
     if SetNetworkIdSyncToPlayer then
       SetNetworkIdSyncToPlayer(netId, owner, true)
-      print(("locked net id %s to %s for sync"):format(tostring(netId), ownerName))
+      print(("locked net %s sync to %s so it behaves"):format(netStr, ownerName))
     else
-      print("network id sync lock is not available on this build so skipping that part")
+      print("net sync lock native not available on this build, rolling without it")
     end
 
     TriggerClientEvent('fjella:guard:setup', owner, netId, ai or {}, weapon or 0, exemptIds or {})
-    print(("told %s to set up their guard %s on the client"):format(ownerName, tostring(netId)))
+    print(("pinged %s to set up their guard %s client-side"):format(ownerName, netStr))
+    return
+  end
+
+  -- no owner yet, pick the closest player to drive it as a fallback
+  local epos = GetEntityCoords(ent)
+  local winner, bestDist = nil, 1e9
+  for _, id in ipairs(GetPlayers()) do
+    id = tonumber(id)
+    local pped = GetPlayerPed(id)
+    if pped and pped ~= 0 and DoesEntityExist(pped) then
+      local d = #(GetEntityCoords(pped) - epos)
+      if d < bestDist then
+        bestDist = d
+        winner = id
+      end
+    end
+  end
+
+  if winner then
+    guardOwner[netId] = winner
+    local winnerName = GetPlayerName(winner) or ("id " .. tostring(winner))
+    if SetNetworkIdSyncToPlayer then
+      SetNetworkIdSyncToPlayer(netId, winner, true)
+    end
+    TriggerClientEvent('fjella:guard:setup', winner, netId, ai or {}, weapon or 0, exemptIds or {})
+    print(("no native owner for guard %s, so i gave it to %s at ~%.1fm away"):format(netStr, winnerName, bestDist))
   else
-    print(("could not find a valid owner for guard %s will try again later"):format(tostring(netId)))
+    print(("no owner for guard %s and nobody around to claim it yet, leaving it for the watcher to retry"):format(netStr))
   end
 end
+
 
 
 
