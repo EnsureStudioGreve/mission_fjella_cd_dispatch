@@ -160,58 +160,44 @@ end)
 
 -- Door FX / thermite FX 
 RegisterNetEvent('fjella:doorFx', function(doorKey, ms)
-  print(('door fx start for %s with duration %s ms'):format(tostring(doorKey), tostring(ms or 5000)))
-
-  local cfg = Config.Doors[doorKey]
-  if not cfg then
-    print('door fx aborted no door config found')
-    return
-  end
-
-  local function r(v) return math.floor((v or 0) + 0.5) end
+  local cfg = Config.Doors[doorKey]; if not cfg then return end
   local ped = PlayerPedId()
   SetEntityHeading(ped, (cfg.anim and cfg.anim.heading) or 0.0)
 
-  print('loading props and animation for charge')
   lib.requestModel(`hei_p_m_bag_var22_arm_s`, 1500)
   lib.requestModel(`hei_prop_heist_thermite`, 1500)
   lib.requestAnimDict("anim@heists@ornate_bank@thermal_charge", 1500)
 
   local coords = cfg.anim.pos
-  print(('placing bag at x %s y %s z %s'):format(r(coords.x), r(coords.y), r(coords.z)))
 
-  local bag = CreateObject(`hei_p_m_bag_var22_arm_s`, coords.x, coords.y, coords.z, true, true, false)
+  -- non-networked props + collision off
+  local bag    = CreateObjectNoOffset(`hei_p_m_bag_var22_arm_s`, coords.x, coords.y, coords.z, false, false, true)
   SetEntityCollision(bag, false, true)
-  local charge = CreateObject(`hei_prop_heist_thermite`, coords.x, coords.y, coords.z + 0.2, true, true, true)
-  AttachEntityToEntity(charge, ped, GetPedBoneIndex(ped, 28422), 0.0,0.0,0.0, 0.0,0.0,200.0, true,true,false,true,1,true)
-  print('charge attached to player hand')
 
-  local rx, ry, rz = table.unpack(GetEntityRotation(ped))
-  local scene = NetworkCreateSynchronisedScene(coords.x, coords.y, coords.z, rx, ry, rz, 2, false, false, 1065353216, 0, 1.3)
-  NetworkAddPedToSynchronisedScene(ped, scene, "anim@heists@ornate_bank@thermal_charge", "thermal_charge", 1.5,-4.0,1,16,1148846080,0)
-  NetworkAddEntityToSynchronisedScene(bag, scene, "anim@heists@ornate_bank@thermal_charge", "bag_thermal_charge", 4.0,-8.0,1)
+  local charge = CreateObjectNoOffset(`hei_prop_heist_thermite`, coords.x, coords.y, coords.z + 0.2, false, false, true)
+  SetEntityCollision(charge, false, true)
+  AttachEntityToEntity(charge, ped, GetPedBoneIndex(ped, 28422), 0.0, 0.0, 0.0, 0.0, 0.0, 200.0, true, true, false, true, 1, true)
+
+  local rot = GetEntityRotation(ped) -- vector3, no table.unpack
+  local scene = NetworkCreateSynchronisedScene(coords.x, coords.y, coords.z, rot.x, rot.y, rot.z, 2, false, false, 1065353216, 0, 1.3)
+  NetworkAddPedToSynchronisedScene(ped, scene, "anim@heists@ornate_bank@thermal_charge", "thermal_charge", 1.5, -4.0, 1, 16, 1148846080, 0)
+  NetworkAddEntityToSynchronisedScene(bag, scene, "anim@heists@ornate_bank@thermal_charge", "bag_thermal_charge", 4.0, -8.0, 1)
   NetworkStartSynchronisedScene(scene)
-  print('synchronized scene started')
 
-  print(('showing progress bar for %s ms'):format(tostring(ms or 5000)))
   lib.progressBar({ duration = ms or 5000, label = 'Planting...', canCancel=false, disable={move=true,combat=true,car=true} })
 
   Wait(250)
   DetachEntity(charge, true, true)
-  FreezeEntityPosition(charge, true)
+  FreezeEntityPosition(charge, true)       -- keep it still
+  -- keep charge collision disabled while it sits on the door
   DeleteObject(bag)
   NetworkStopSynchronisedScene(scene)
-  print('charge placed bag deleted scene stopped')
 
   SetTimeout(8000, function()
-    if DoesEntityExist(charge) then
-      DeleteEntity(charge)
-      print('charge cleaned up after burn time')
-    else
-      print('charge was already gone at cleanup time')
-    end
+    if DoesEntityExist(charge) then DeleteEntity(charge) end
   end)
 end)
+
 
 RegisterNetEvent('fjella:thermiteFx', function(pos)
   local function r(v) return math.floor((v or 0) + 0.5) end
@@ -282,21 +268,16 @@ end
 
 -- pooled brain
 local function ensureBrain()
-  if BrainRunning then
-    print('guard brain is already running')
-    return
-  end
+  if BrainRunning then return end
   BrainRunning = true
-  print('guard brain is waking up')
   CreateThread(function()
-    local tick = 0
     while BrainRunning do
       if next(GuardPeds) == nil then
-        print('no owned guards right now taking a short nap')
         Wait(1000)
       else
+        -- snapshot candidates once
         local players = GetActivePlayers()
-        local candidates = {}
+        local candidates = {}  -- { {ped=pped, pos=vec3, sid=number} }
         for _, pid in ipairs(players) do
           local sid = GetPlayerServerId(pid)
           if not ExemptSet[sid] then
@@ -307,29 +288,23 @@ local function ensureBrain()
           end
         end
 
-        local guardCount = 0
+        -- tick all owned guards
         for ped, ai in pairs(GuardPeds) do
           if DoesEntityExist(ped) and not IsEntityDead(ped) then
-            guardCount = guardCount + 1
             if not IsPedInCombat(ped, 0) then
-              local alert = (ai and ai.alertRange) or 60.0
-              local alert2 = alert * alert
-              local myPos = GetEntityCoords(ped)
-              local best, bestDist2 = nil, alert2 + 1.0
+              local alert   = (ai and ai.alertRange) or 60.0
+              local myPos   = GetEntityCoords(ped)
+              local best, bestDist = nil, alert + 0.001
 
-              for i=1, #candidates do
-                local c = candidates[i]
-                local dx = c.pos.x - myPos.x
-                local dy = c.pos.y - myPos.y
-                local dz = c.pos.z - myPos.z
-                local d2 = dx*dx + dy*dy + dz*dz
-                if d2 <= alert2 and HasEntityClearLosToEntity(ped, c.ped, 17) then
-                  if d2 < bestDist2 then best, bestDist2 = c.ped, d2 end
+              for i = 1, #candidates do
+                local c    = candidates[i]
+                local dist = #(c.pos - myPos)                 -- builtin vector math
+                if dist <= alert and HasEntityClearLosToEntity(ped, c.ped, 17) then
+                  if dist < bestDist then best, bestDist = c.ped, dist end
                 end
               end
 
               if best then
-                print('guard found a valid target and is engaging')
                 ClearPedTasksImmediately(ped)
                 TaskCombatPed(ped, best, 0, 16)
                 SetPedKeepTask(ped, true)
@@ -341,19 +316,14 @@ local function ensureBrain()
             end
           else
             GuardPeds[ped] = nil
-            print('removed a guard from tracking since it is gone')
           end
-        end
-
-        tick = tick + 1
-        if tick % 5 == 0 then
-          print(('guard brain tick with %s guards and %s player candidates'):format(guardCount, #candidates))
         end
         Wait(700)
       end
     end
   end)
 end
+
 
 -- Per-guard setup from server (sent only to the net owner)
 RegisterNetEvent('fjella:guard:setup', function(netId, ai, weapon, exemptIds)
@@ -533,26 +503,28 @@ local ANIM_DICT, ANIM_CLIP, ANIM_FLAG = 'anim@heists@box_carry@', 'idle', 51
 local function startCarry()
   if carrying then return end
   carrying = true
-  print('starting carry animation and attaching the box')
   local ped = PlayerPedId()
   lib.requestModel(`hei_prop_heist_box`, 1500)
   lib.requestAnimDict(ANIM_DICT, 1500)
 
   local p = GetEntityCoords(ped)
-  boxObj = CreateObject(`hei_prop_heist_box`, p.x, p.y, p.z + 0.2, true, true, true)
-  SetEntityCollision(boxObj, false, false)
+  -- non-networked object, dynamic
+  boxObj = CreateObjectNoOffset(`hei_prop_heist_box`, p.x, p.y, p.z + 0.2, false, false, true)
+  SetEntityCollision(boxObj, false, true)  -- avoid bowling people over / vehicle entry chaos
   AttachEntityToEntity(boxObj, ped, GetPedBoneIndex(ped, 60309),
     0.025, 0.080, 0.255, -145.0, 290.0, 0.0, true, true, false, true, 1, true)
+
   TaskPlayAnim(ped, ANIM_DICT, ANIM_CLIP, 2.0, 2.0, -1, ANIM_FLAG, 0.0, false, false, false)
 
   CreateThread(function()
     while carrying do
-      DisableControlAction(0, 21, true)
-      DisableControlAction(0, 36, true)
+      DisableControlAction(0, 21, true)  -- sprint
+      DisableControlAction(0, 36, true)  -- stealth
       Wait(0)
     end
   end)
 end
+
 
 local function stopCarry()
   if not carrying then return end
