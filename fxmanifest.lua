@@ -28,5 +28,5 @@ dependencies {
     'ox_inventory',
     'ox_target',
     'ox_doorlock',
-    'ps-dispatch'
+    'cd_dispatch'
 }
