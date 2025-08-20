@@ -106,8 +106,8 @@ RegisterNetEvent('fjella:pd:alert', function(coords)
     TriggerServerEvent('cd_dispatch:AddNotification', {
         job_table = {'police'},
         coords = coords,
-        title = '10-47 - ' .. (Config.PoliceAlertTitle or 'Ukjent Hendelse'),
-        message = 'Innringer (Lokal) ringer fra ' .. (streetName or 'ukjent sted'),
+        title = '10-47 - ' .. (Config.PoliceAlertTitle or 'Unknown Incident'),
+        message = 'Caller (Local) calling from ' .. (streetName or 'Unknown Place'),
         flash = 0,
         unique_id = playerData.unique_id,
         sound = 1,
@@ -116,7 +116,7 @@ RegisterNetEvent('fjella:pd:alert', function(coords)
             scale = 1.0,
             colour = 1,
             flashes = false,
-            text = '911 - ' .. (Config.PoliceAlertTitle or 'Ukjent Hendelse'),
+            text = '911 - ' .. (Config.PoliceAlertTitle or 'Unknown Incident'),
             time = Config.AlertBlipDuration or 60000,
             radius = 0,
         }
