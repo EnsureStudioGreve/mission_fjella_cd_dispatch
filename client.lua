@@ -83,36 +83,47 @@ end)
 
 -- PD alert blip (silent route for 30s)
 RegisterNetEvent('fjella:pd:alert', function(coords)
-  if not coords then
-    print('PD Alert: got no coords nothing to ping')
-    return
-  end
+    if not coords then
+        print('PD Alert: got no coords nothing to dispatch')
+        return
+    end
 
-  local name = Config.PDName or 'Mission'
-  print(('PD Alert dropping a ping at (%.2f, %.2f, %.2f) labeled "%s"')
-    :format(coords.x or 0.0, coords.y or 0.0, coords.z or 0.0, name))
+    local name = Config.PDName or 'Mission'
+    print(('PD Alert dispatching at (%.2f, %.2f, %.2f) labeled "%s"')
+        :format(coords.x or 0.0, coords.y or 0.0, coords.z or 0.0, name))
 
-  local blip = AddBlipForCoord((coords.x or 0.0) + 0.0, (coords.y or 0.0) + 0.0, (coords.z or 0.0) + 0.0)
-  if not blip or blip == 0 then
-    print('PD Alert: AddBlipForCoord returned 0 — blip refused to exist aborting')
-    return
-  end
+    -- Grab player info from cd_dispatch
+    local playerData = exports['cd_dispatch']:GetPlayerInfo()
+    if not playerData or not playerData.unique_id then
+        print('PD Alert: cd_dispatch returned no playerData, aborting dispatch')
+        return
+    end
 
-  SetBlipSprite(blip, 161)
-  SetBlipScale(blip, 1.2)
-  SetBlipColour(blip, 1)
-  BeginTextCommandSetBlipName("STRING")
-  AddTextComponentString(name)
-  EndTextCommandSetBlipName(blip)
+    -- Get street name where the alert came from
+    local streetName = GetStreetNameFromHashKey(GetStreetNameAtCoord(coords.x, coords.y, coords.z))
 
-  SetBlipRoute(blip, true)
-  print('PD Alert: blip styled (sprite 161, scale 1.2, color 1) routing for 30 secons')
-  Wait(30000)
+    -- Send dispatch notification
+    TriggerServerEvent('cd_dispatch:AddNotification', {
+        job_table = {'police'},
+        coords = coords,
+        title = '10-47 - ' .. (Config.PoliceAlertTitle or 'Ukjent Hendelse'),
+        message = 'Innringer (Lokal) ringer fra ' .. (streetName or 'ukjent sted'),
+        flash = 0,
+        unique_id = playerData.unique_id,
+        sound = 1,
+        blip = {
+            sprite = 380,
+            scale = 1.0,
+            colour = 1,
+            flashes = false,
+            text = '911 - ' .. (Config.PoliceAlertTitle or 'Ukjent Hendelse'),
+            time = Config.AlertBlipDuration or 60000,
+            radius = 0,
+        }
+    })
 
-  RemoveBlip(blip)
-  print('PD Alert: timer’s up blip removed hope they got the memo.')
+    print('PD Alert: cd_dispatch notification sent to police')
 end)
-
 
 --  Phase 1 show door interaction zones 
 RegisterNetEvent('fjella:phase1:targets', function()
