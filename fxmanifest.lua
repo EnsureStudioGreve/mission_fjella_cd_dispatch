@@ -21,9 +21,6 @@ server_scripts {
     'server.lua' 
 }
 
-
-
-
 dependencies {
     'ox_inventory',
     'ox_target',
